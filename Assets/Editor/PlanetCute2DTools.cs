@@ -7,24 +7,30 @@ public class PlanetCute2DTools : Editor {
 
     private const float VERTICAL_DIST = .42f;
 
-    [MenuItem("PlanetCute2D/Fix Order %&f")]
+    [MenuItem("PlanetCute2D/Reset Shadows and Overlap %&r")]
+    public static void GroundMoved() {
+        FixOrder();
+        RemoveShadows();
+        MakeShadows();
+    }
+
     public static void FixOrder() {
         // all the ground exists at half intervals of y, so set the order as
         // double its position
         foreach(GameObject obj in GameObject.FindGameObjectsWithTag("Ground")) {
+            int newOrder = Mathf.RoundToInt(obj.transform.position.y / VERTICAL_DIST);
             SpriteRenderer rend = obj.GetComponent<SpriteRenderer>();
-            rend.sortingOrder = Mathf.RoundToInt(obj.transform.position.y / VERTICAL_DIST);
+            rend.sortingOrder = newOrder;
+            EditorUtility.SetDirty(rend);
         }
     }
 
-    [MenuItem("PlanetCute2D/Remove Shadows %&r")]
     public static void RemoveShadows() {
         foreach(GameObject obj in GameObject.FindGameObjectsWithTag("Shadow")) {
             DestroyImmediate(obj);
         }
     }
 
-    [MenuItem("PlanetCute2D/Make Shadows %&m")]
     public static void MakeShadows() {
         GameObject obj = GameObject.Find("ShadowMakerHelper");
         if(obj == null) {
@@ -46,26 +52,34 @@ public class PlanetCute2DTools : Editor {
         }
         // if there's a block above to the left, make a west shadow
         if(IsGroundPresent(ground, new Vector2(-1, 1))) {
-            Debug.Log("Making west shadow for " + ground.name);
-            GameObject obj = Instantiate(helper.shadowWest) as GameObject;
-            obj.transform.parent = ground.transform;
-            obj.transform.position = ground.transform.position;
+            CreateShadow(ground, helper.shadowWest);
         }
         // if there's a block above to the right, make an east shadow
         if(IsGroundPresent(ground, new Vector2(1, 1))) {
-            GameObject obj = Instantiate(helper.shadowEast) as GameObject;
-            obj.transform.parent = ground.transform;
-            obj.transform.position = ground.transform.position;
+            CreateShadow(ground, helper.shadowEast);
         }
 
     }
 
     private static bool IsGroundPresent(GameObject ground, Vector2 offset) {
+        BoxCollider2D box = ground.GetComponent<BoxCollider2D>();
+
+        Vector3 checkPos = ground.transform.position + (Vector3)box.center;
+        checkPos.y += box.size.y / 2;
         offset.y -= .5f;
         offset.y *= VERTICAL_DIST;
-        Vector3 checkPos = ground.transform.position + (Vector3)offset;
-        //Debug.Log(ground.name + " checking at " + checkPos);
-        return Physics2D.OverlapCircle(checkPos, .05f,
+
+        checkPos += (Vector3)offset;
+        return Physics2D.OverlapCircle(checkPos, .01f,
             1 << LayerMask.NameToLayer("Ground")) != null;
+    }
+
+    private static void CreateShadow(GameObject ground, GameObject prefab) {
+        GameObject obj = Instantiate(prefab) as GameObject;
+        obj.transform.parent = ground.transform;
+        BoxCollider2D box = ground.GetComponent<BoxCollider2D>();
+        Vector3 pos = ground.transform.position + (Vector3)box.center;
+        pos.y += box.size.y / 2;
+        obj.transform.position = pos;
     }
 }
